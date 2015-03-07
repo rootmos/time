@@ -8,20 +8,42 @@ import Database.MongoDB ( (=:)
                         , host
                         , close
                         )
-import Data.Monoid
-import Data.Time
-import Control.Monad
-import Control.Applicative
-import Control.Monad.Reader
-import Control.Monad.Trans
+import Data.Monoid ( Monoid
+                   , mconcat
+                   , mempty
+                   , mappend
+                   )
+import Data.Time ( UTCTime
+                 , NominalDiffTime
+                 , diffUTCTime
+                 )
+import Control.Applicative ( (<$>) )
+import Control.Monad ( liftM )
 
 import FixedPointData
 import Serializable
+
+-------------------------------------------------------------------------------
 
 data User = User { name :: String
                  , targetHours :: Float
                  }
                  deriving (Show)
+
+instance Serializable User where
+    serialize user = [ "name" =: (name user)
+                     , "targetHours" =: (targetHours user)
+                     ]
+    unserialize doc = do
+       name <- getField doc "name" :: Maybe String
+       hours <- getField doc "targetHours" :: Maybe Float
+       return (User name hours)
+
+    insert = insert' "users"
+    find = find' "users"
+    save = save' "users"
+
+-------------------------------------------------------------------------------
 
 type Timestamp = UTCTime
 type When = Timestamp
@@ -52,19 +74,7 @@ sumTimeRecords = getData . mconcat . map getFixedPointData
         getFixedPointData (Set _ x) = Fixed x
         getFixedPointData x = Data (getValue x)
 
-instance Serializable User where
-    serialize user = [ "name" =: (name user)
-                     , "targetHours" =: (targetHours user)
-                     ]
-    unserialize doc = do
-       name <- getField doc "name" :: Maybe String
-       hours <- getField doc "targetHours" :: Maybe Float
-       return (User name hours)
-
-    insert = insert' "users"
-    find = find' "users"
-    save = save' "users"
-
+-------------------------------------------------------------------------------
 
 main :: IO ()
 main = do
