@@ -6,6 +6,8 @@ module TimeData ( User (..)
                 , connect
                 , close
                 , retrieveAllUsers
+                , retrieveRecordsForUser
+                , retrieveAllRecordsForUser
                 , getUserByName
                 , getUserByNameUnsafe
                 , TimeData.insert
@@ -148,6 +150,8 @@ close = M.close
 run con = M.access con M.master "time"
 
 -------------------------------------------------------------------------------
+-- Accessors
+-------------------------------------------------------------------------------
 
 retrieveAllUsers :: Connection -> IO [DB User]
 retrieveAllUsers con = run con $ find []
@@ -157,6 +161,22 @@ getUserByName con name = liftM listToMaybe $ run con $ find ["name" =: name]
 
 getUserByNameUnsafe :: Connection -> String -> IO (DB User)
 getUserByNameUnsafe con name = liftM fromJust $ getUserByName con name
+
+retrieveAllRecordsForUser :: Connection -> DB User -> IO [DB TimeRecord]
+retrieveAllRecordsForUser con user = run con $ find ["user" =: objID user]
+
+retrieveRecordsForUser :: Connection -> DB User -> Timestamp -> Timestamp
+                       -> IO [DB TimeRecord]
+retrieveRecordsForUser con user from to =
+    run con $ find [ "user" =: objID user
+                   , "$or" =: [ ["when" =: ["$gt" =: from, "$lt" =: to]]
+                              , ["start" =: ["$gt" =: from, "$lt" =: to]]
+                              ]
+                   ]
+
+-------------------------------------------------------------------------------
+-- Mutators
+-------------------------------------------------------------------------------
 
 insert :: (Serializable a) => Connection -> a -> IO (DB a)
 insert con = run con . Serializable.insert

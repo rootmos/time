@@ -2,7 +2,7 @@
 module Serializable ( Serializable (..)
                     , Referable (..)
                     , Reference (refID)
-                    , DB
+                    , DB (..)
                     , getField
                     , getReference
                     ) where
@@ -79,7 +79,7 @@ getReference doc name = do
 
 -------------------------------------------------------------------------------
 
-data DB a = DB { id :: ObjectId, get :: a }
+data DB a = DB { objID :: ObjectId, get :: a }
 
 instance Functor DB where
     fmap f (DB id a) = DB id (f a)
