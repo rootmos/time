@@ -7,6 +7,8 @@ module Serializable ( Serializable (..)
                     , getReference
                     ) where
 
+-------------------------------------------------------------------------------
+
 import qualified Database.MongoDB as M ( lookup
                                        , insert
                                        , find
