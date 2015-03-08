@@ -3,7 +3,6 @@
 module TimeData ( User (..)
                 , TimeRecord (..)
                 , sumTimeRecords
-                , Serializable.DB
                 , connect
                 , close
                 , retrieveAllUsers
