@@ -14,13 +14,7 @@ module TimeData ( User (..)
 
 -------------------------------------------------------------------------------
 
-import Database.MongoDB ( (=:)
-                        , connect
-                        , access
-                        , master
-                        , host
-                        , close
-                        )
+import Database.MongoDB ( (=:) )
 import Data.Monoid ( Monoid
                    , mconcat
                    , mempty
