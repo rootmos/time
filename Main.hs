@@ -44,7 +44,11 @@ instance Serializable User where
 
     insert = insert' "users"
     find = find' "users"
+    findOne = findOne' "users"
     save = save' "users"
+
+instance Referable User where
+    dereference = dereference' "users"
 
 -------------------------------------------------------------------------------
 
@@ -56,31 +60,40 @@ instance Monoid NominalDiffTime where
     mempty = 0 :: NominalDiffTime
     mappend = (+)
 
-data TimeRecord = Set When Amount
-                | Add When Amount
-                | Between Timestamp Timestamp
+data TimeRecord = Set (Reference User) When Amount
+                | Add (Reference User) When Amount
+                | Between (Reference User) Timestamp Timestamp
                 deriving (Show)
 
 getValue :: TimeRecord -> Amount
-getValue (Set _ x) = x
-getValue (Add _ x) = x
-getValue (Between x y) = diffUTCTime y x
+getValue (Set _ _ x) = x
+getValue (Add _ _ x) = x
+getValue (Between _ x y) = diffUTCTime y x
 
 getWhen :: TimeRecord -> When
-getWhen (Set x _) = x
-getWhen (Add x _) = x
-getWhen (Between x _) = x
+getWhen (Set _ x _) = x
+getWhen (Add _ x _) = x
+getWhen (Between _ x _) = x
 
 sumTimeRecords :: [TimeRecord] -> NominalDiffTime
 sumTimeRecords = getData . mconcat . map getFixedPointData
     where
-        getFixedPointData (Set _ x) = Fixed x
+        getFixedPointData (Set _ _ x) = Fixed x
         getFixedPointData x = Data (getValue x)
 
 instance Serializable TimeRecord where
-    serialize (Set w a) = [ "when" =: w, "set" =: a ]
-    serialize (Add w a) = [ "when" =: w, "add" =: a ]
-    serialize (Between s e) = [ "start" =: s, "end" =: e ]
+    serialize (Set u w a) = [ "when" =: w
+                            , "set" =: a
+                            , "user" =: refID u
+                            ]
+    serialize (Add u w a) = [ "when" =: w
+                            , "add" =: a
+                            , "user" =: refID u
+                            ]
+    serialize (Between u s e) = [ "start" =: s
+                                , "end" =: e
+                                , "user" =: refID u
+                                ]
 
     unserialize doc = listToMaybe . catMaybes $ [ tryParseSet doc
                                                 , tryParseAdd doc
@@ -90,20 +103,24 @@ instance Serializable TimeRecord where
             tryParseSet doc = do
                 amount <- getField doc "set"
                 when <- getField doc "when"
-                return $ Set when amount
+                user <- getReference doc "user"
+                return $ Set user when amount
             tryParseAdd doc = do
                 amount <- getField doc "add"
                 when <- getField doc "when"
-                return $ Add when amount
+                user <- getReference doc "user"
+                return $ Add user when amount
             tryParseBetween doc = do
                 start <- getField doc "start"
                 end <- getField doc "end"
-                return $ Between start end
+                user <- getReference doc "user"
+                return $ Between user start end
 
 
 
     insert = insert' "records"
     find = find' "records"
+    findOne = findOne' "records"
     save = save' "records"
 
 -------------------------------------------------------------------------------
@@ -114,12 +131,12 @@ main = do
 
     -- User testing -----------------------------------------------------------
     --insertUser pipe "lars"
-    --user <- getUnsafe pipe "lars" :: IO (DB User)
+    user <- getUnsafe pipe "lars" :: IO (DB User)
     --run pipe . save $ (\u -> u { targetHours = (targetHours u) + 1.0 }) <$> user
     --printUsers pipe
 
     -- TimeRecord testing -----------------------------------------------------
-    --insertRecords pipe
+    --insertRecords pipe user
     printTimeRecords pipe
     close pipe
 
@@ -129,17 +146,17 @@ printUsers pipe = do
     users <- run pipe $ find [] :: IO [DB User]
     mapM (putStrLn . show) users
 
-insertRecords pipe = do
+insertRecords pipe user = do
     now <- getCurrentTime
-    s <- run pipe . insert $ Set now 10
+    s <- run pipe . insert $ Set (reference user) now 10
     putStrLn $ show s
 
     now <- getCurrentTime
-    a <- run pipe . insert $ Add now 7
+    a <- run pipe . insert $ Add (reference user) now 7
     putStrLn $ show a
 
     now <- getCurrentTime
-    b <- run pipe . insert $ Between now (addUTCTime 20 now)
+    b <- run pipe . insert $ Between (reference user) now (addUTCTime 20 now)
     putStrLn $ show b
 
 printTimeRecords pipe = do
