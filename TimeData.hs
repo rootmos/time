@@ -4,17 +4,27 @@ module TimeData ( User (..)
                 , TimeRecord (..)
                 , sumTimeRecords
                 , Serializable.DB
-                , insert
-                , find
-                , findOne
-                , save
-                , reference
-                , dereference
+                , connect
+                , close
+                , retrieveAllUsers
+                , getUserByName
+                , getUserByNameUnsafe
+                , TimeData.insert
+                , TimeData.save
                 ) where
 
 -------------------------------------------------------------------------------
 
+import Network.Socket (HostName)
+
 import Database.MongoDB ( (=:) )
+import qualified Database.MongoDB as M ( connect
+                                       , host
+                                       , close
+                                       , master
+                                       , access
+                                       , Pipe )
+
 import Data.Monoid ( Monoid
                    , mconcat
                    , mempty
@@ -25,7 +35,8 @@ import Data.Time ( UTCTime
                  , diffUTCTime
                  )
 import Control.Applicative ( (<$>) )
-import Data.Maybe (catMaybes, listToMaybe)
+import Data.Maybe (catMaybes, listToMaybe, fromJust)
+import Control.Monad ( liftM )
 
 import FixedPointData
 import Serializable
@@ -124,3 +135,32 @@ instance Serializable TimeRecord where
     find = find' "records"
     findOne = findOne' "records"
     save = save' "records"
+
+-------------------------------------------------------------------------------
+
+type Connection = M.Pipe
+
+connect :: HostName -> IO Connection
+connect = M.connect . M.host
+
+close :: Connection -> IO ()
+close = M.close
+
+run con = M.access con M.master "time"
+
+-------------------------------------------------------------------------------
+
+retrieveAllUsers :: Connection -> IO [DB User]
+retrieveAllUsers con = run con $ find []
+
+getUserByName :: Connection -> String -> IO (Maybe (DB User))
+getUserByName con name = liftM listToMaybe $ run con $ find ["name" =: name]
+
+getUserByNameUnsafe :: Connection -> String -> IO (DB User)
+getUserByNameUnsafe con name = liftM fromJust $ getUserByName con name
+
+insert :: (Serializable a) => Connection -> a -> IO (DB a)
+insert con = run con . Serializable.insert
+
+save :: (Serializable a) => Connection -> DB a -> IO ()
+save con = run con . Serializable.save
