@@ -75,7 +75,7 @@ getWhen (Set _ x _) = x
 getWhen (Add _ x _) = x
 getWhen (Between _ x _) = x
 
-sumTimeRecords :: [TimeRecord] -> NominalDiffTime
+sumTimeRecords :: [TimeRecord] -> Amount
 sumTimeRecords = getData . mconcat . map getFixedPointData
     where
         getFixedPointData (Set _ _ x) = Fixed x

@@ -56,10 +56,8 @@ class Serializable a where
 
     save :: DB a -> Action IO ()
     save' :: Collection -> DB a -> Action IO ()
-    save' collecton (DB id a) =
-        M.save collecton doc
-          where
-              doc = merge ["_id" =: id] (serialize a)
+    save' collection (DB id a) =
+        M.save collection $ merge ["_id" =: id] (serialize a)
 
 unserializeAndWrap :: (Serializable a) => Document -> Maybe (DB a)
 unserializeAndWrap doc = liftM2 DB (readID doc) (readObject doc)
