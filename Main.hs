@@ -1,29 +1,50 @@
+{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ExtendedDefaultRules #-}
+
 import Data.Time
 import Data.Time.LocalTime
 import Data.Time.Format
 import System.Locale
 
 import TimeData
+import Options.Applicative
+import Maybeify
 
 -------------------------------------------------------------------------------
 
+data Configuration = Configuration { hostname :: String
+                                   , port :: Int
+                                   , userName :: String
+                                   }
+    deriving Show
+
+maybeify ''Configuration [''Show]
+
+sample :: Parser MaybeConfiguration
+sample = MaybeConfiguration
+    <$> optional ( strOption
+                 ( long "host"
+                 <> short 'H'
+                 <> metavar "HOSTNAME"
+                 <> help "Hostname for the MongoDB server") )
+    <*> optional ( option auto
+                 ( long "port"
+                 <> short 'p'
+                 <> metavar "PORT"
+                 <> help "Port to use for contacting the MongoDB server") )
+    <*> optional ( strOption
+                 ( long "name"
+                 <> short 'n'
+                 <> metavar "NAME"
+                 <> help "Specify the active user") )
+
 main :: IO ()
 main = do
-    tz <- getCurrentTimeZone
-    con <- connect "127.0.0.1"
-
-    -- insert con (User "Foobar" 7.75)
-    let from = localTimeToUTC tz $ readTime defaultTimeLocale "%F" "2015-03-01"
-    now <- getCurrentTime
-
-    foobar <- getUserByNameUnsafe con "lars"
-
-    records <- retrieveRecordsForUser con foobar from now
-    mapM (putStrLn . show) records
-
-    -- users <- retrieveAllUsers con
-    -- mapM (putStrLn . show) users
-
-    close con
+    opt <- execParser opts
+    putStrLn $ show opt
+      where
+          opts = info (helper <*> sample) (
+              fullDesc
+              <> progDesc "Time management program"
+              <> header "time - a program for managing time accounts" )
