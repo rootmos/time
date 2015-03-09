@@ -169,8 +169,8 @@ retrieveRecordsForUser :: Connection -> DB User -> Timestamp -> Timestamp
                        -> IO [DB TimeRecord]
 retrieveRecordsForUser con user from to =
     run con $ find [ "user" =: objID user
-                   , "$or" =: [ ["when" =: ["$gt" =: from, "$lt" =: to]]
-                              , ["start" =: ["$gt" =: from, "$lt" =: to]]
+                   , "$or" =: [ ["when" =: ["$gte" =: from, "$lt" =: to]]
+                              , ["start" =: ["$gte" =: from, "$lt" =: to]]
                               ]
                    ]
 
