@@ -65,27 +65,20 @@ parseArguments = execParser opts
 -------------------------------------------------------------------------------
 
 parseConfigurationFile :: FilePath -> IO MaybeConfiguration
-parseConfigurationFile path = handle handleIOException $ do
-    eitherParser <- readfile emptyCP path
-    case eitherParser  of
-      Left _ -> return emptyConfiguration
-      Right parser -> return $ MaybeConfiguration (strOption "hostname")
+parseConfigurationFile path = handle handleIOException $
+    either (\_ -> emptyConfiguration) parseHelper `liftM` readfile emptyCP path
+      where 
+          parseHelper parser = MaybeConfiguration (strOption "hostname")
                                                   (readOption "port")
                                                   (strOption "username")
-        where
-            strOption field = case get parser "server" field of
-                                Left _ -> Nothing
-                                Right x -> Just x
-            readOption field = case get parser "server" field of
-                                 Left _ -> Nothing
-                                 Right x -> readMaybe x
+            where
+                strOption = either (\_ -> Nothing) Just . get parser "server"
+                readOption = either (\_ -> Nothing) readMaybe . get parser "server"
 
 -------------------------------------------------------------------------------
 
 mergeField :: String -> [Maybe a] -> Either String a
-mergeField field maybies = case msum maybies of
-                             Nothing -> Left ("no " ++ field)
-                             Just x -> Right x
+mergeField field = maybe (Left ("no " ++ field)) Right . msum
 
 mergeOptions :: [MaybeConfiguration] -> Either String Configuration
 mergeOptions configs = do
