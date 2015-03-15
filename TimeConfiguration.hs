@@ -137,9 +137,9 @@ lastConfig = flip liftM configurationPath (</> "last")
 getConfiguration :: IO Configuration
 getConfiguration = do
     args <- parseArguments
-    conf <- mainConfig >>= parseConfigurationFile
-    last <- lastConfig >>= parseConfigurationFile
+    conf <- parseConfigurationFile =<< mainConfig
+    last <- parseConfigurationFile =<< lastConfig
 
     case mergeOptions [args, conf, last] of
       Left msg -> error msg
-      Right opts -> lastConfig >>= saveConfigurationFile opts >> return opts
+      Right opts -> (saveConfigurationFile opts =<< lastConfig) >> return opts
