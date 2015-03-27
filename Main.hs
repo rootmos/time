@@ -20,7 +20,10 @@ readlineAndDoTheThing = do
     case maybe of
       Nothing -> return ()
       Just x | x `elem` exitCmds -> return ()
-      Just x | otherwise -> delegate x >> readlineAndDoTheThing
+      Just x | otherwise -> do
+         addHistory x
+         delegate x
+         readlineAndDoTheThing
 
 delegate input = putStrLn $ case shlex input of
                               Left e -> show e
