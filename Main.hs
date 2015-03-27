@@ -23,9 +23,26 @@ readlineAndDoTheThing = do
       Just x | x `elem` exitCmds -> return ()
       Just x | otherwise -> do
          addHistory x
-         delegate x
+         either putStrLn delegate (parseCmdLine x)  
          readlineAndDoTheThing
 
+
+parseCmdLine :: String -> Either String CommandOptions
+parseCmdLine input = do
+    argv <- shlex input
+    case execParserPure parserOptions cmdline argv of
+      Success x -> Right x
+      Failure e -> Left . fst $ renderFailure e []
+    where
+        cmdline = info (helper <*> commandParser) (
+            fullDesc
+            <> progDesc "Time management program"
+            <> header "time - a program for managing time accounts" )
+        parserOptions = ParserPrefs "foo" False False True 80
+
+delegate :: CommandOptions -> IO ()
+delegate (AddOptions _) = putStrLn "adding stuff"
+delegate (ShowOptions _ _) = putStrLn "showing stuff"
 
 data CommandOptions = AddOptions { amount :: Int }
                     | ShowOptions { after :: Maybe Int, before :: Maybe Int }
@@ -53,17 +70,6 @@ commandParser = subparser
    <> command "show" ( info (helper <*> showCommandOptions)
                      ( progDesc "Show the time records" ) )
     )
-
-parserOptions = ParserPrefs "foo" False False True 80
-
-delegate input = putStrLn $ case shlex input of
-             Left e -> show e
-             Right x -> show $ execParserPure parserOptions cmdline x
-    where
-        cmdline = info (helper <*> commandParser) (
-            fullDesc
-            <> progDesc "Time management program"
-            <> header "time - a program for managing time accounts" )
 
 main :: IO ()
 main = do
