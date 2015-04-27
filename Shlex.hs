@@ -4,10 +4,9 @@ module Shlex (shlex) where
 import Text.ParserCombinators.Parsec
 import Control.Monad.Error.Class
 
-line = sepBy word spaces
+line = endBy word spaces
 
-word = do
-    quotedWord <|> many1 (noneOf "\" ")
+word = quotedWord <|> many1 (noneOf "\" ")
 
 quotedWord = do
     char '"'
