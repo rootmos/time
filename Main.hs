@@ -5,6 +5,7 @@ import Data.Time
 import Data.Time.LocalTime
 import Data.Time.Format
 import System.Locale
+import Control.Exception
 
 import TimeData
 import TimeConfiguration
@@ -75,4 +76,8 @@ main :: IO ()
 main = do
     conf <- getConfiguration
     putStrLn . show $ conf
-    readlineAndDoTheThing
+    bracket (aquire conf) release (\_ -> readlineAndDoTheThing)
+      where
+          aquire conf = connect (hostname conf) (fromIntegral . port $ conf)
+          release = close
+

@@ -1,6 +1,9 @@
 {-# LANGUAGE TemplateHaskell #-}
 module TimeConfiguration ( Configuration
                          , getConfiguration
+                         , hostname
+                         , port
+                         , username
                          ) where
 
 import Text.Read (readMaybe)

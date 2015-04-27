@@ -16,11 +16,13 @@ module TimeData ( User (..)
 
 -------------------------------------------------------------------------------
 
-import Network.Socket (HostName)
+import Network.Socket ( HostName
+                      , PortNumber(..) )
 
 import Database.MongoDB ( (=:) )
 import qualified Database.MongoDB as M ( connect
-                                       , host
+                                       , Host(..)
+                                       , PortID(PortNumber)
                                        , close
                                        , master
                                        , access
@@ -141,8 +143,8 @@ instance Serializable TimeRecord where
 
 type Connection = M.Pipe
 
-connect :: HostName -> IO Connection
-connect = M.connect . M.host
+connect :: HostName -> PortNumber -> IO Connection
+connect hostname port  = M.connect (M.Host hostname (M.PortNumber port))
 
 close :: Connection -> IO ()
 close = M.close
