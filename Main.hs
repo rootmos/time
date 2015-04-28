@@ -7,13 +7,14 @@ import Data.Time.Format
 import System.Locale
 import Control.Exception
 
+import System.Console.Readline
+import Options.Applicative
+
+-- Our stuff
 import TimeData
 import TimeConfiguration
-
-import System.Console.Readline
-
 import Shlex
-import Options.Applicative
+import Ask
 
 exitCmds = ["quit", "exit"]
 
@@ -74,9 +75,15 @@ commandParser = subparser
 obtainUser con username = do
     maybeUser <- getUserByName con username
     case maybeUser of
-      Nothing -> error $ "User not found: " ++ username
+      Nothing -> perhapsAddUser con username
       Just user -> return user
 
+perhapsAddUser con username = do
+    answer <- askNicely $ "Should I add the user " ++ username ++ "?"
+    if answer then addUser con username
+              else error $ "User not found: " ++ username
+
+addUser con username = insert con (User username 40.0)
 
 main :: IO ()
 main = do
