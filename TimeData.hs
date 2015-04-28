@@ -5,6 +5,7 @@ module TimeData ( User (..)
                 , sumTimeRecords
                 , connect
                 , close
+                , Connection
                 , retrieveAllUsers
                 , retrieveRecordsForUser
                 , retrieveAllRecordsForUser
