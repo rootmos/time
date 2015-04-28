@@ -17,15 +17,15 @@ import Options.Applicative
 
 exitCmds = ["quit", "exit"]
 
-readlineAndDoTheThing con = do
+readlineAndDoTheThing con user = do
     maybe <- readline "> "
     case maybe of
       Nothing -> return ()
       Just x | x `elem` exitCmds -> return ()
       Just x | otherwise -> do
          addHistory x
-         either putStrLn (delegate con) (parseCmdLine x)  
-         readlineAndDoTheThing con
+         either putStrLn (delegate con user) (parseCmdLine x)
+         readlineAndDoTheThing con user
 
 
 parseCmdLine :: String -> Either String CommandOptions
@@ -41,9 +41,8 @@ parseCmdLine input = do
             <> header "time - a program for managing time accounts" )
         parserOptions = ParserPrefs "foo" False False True 80
 
-delegate :: Connection -> CommandOptions -> IO ()
-delegate _ (AddOptions _) = putStrLn "adding stuff"
-delegate _ (ShowOptions _ _) = putStrLn "showing stuff"
+delegate _ _ (AddOptions _) = putStrLn "adding stuff"
+delegate _ _ (ShowOptions _ _) = putStrLn "showing stuff"
 
 data CommandOptions = AddOptions { amount :: Int }
                     | ShowOptions { after :: Maybe Int, before :: Maybe Int }
@@ -72,11 +71,20 @@ commandParser = subparser
                      ( progDesc "Show the time records" ) )
     )
 
+obtainUser con username = do
+    maybeUser <- getUserByName con username
+    case maybeUser of
+      Nothing -> error $ "User not found: " ++ username
+      Just user -> return user
+
+
 main :: IO ()
 main = do
     conf <- getConfiguration
     putStrLn . show $ conf
-    bracket (aquire conf) release (\con -> readlineAndDoTheThing con)
+    bracket (aquire conf) release (\con -> do
+            user <- obtainUser con (username conf)
+            readlineAndDoTheThing con user)
       where
           aquire conf = connect (hostname conf) (fromIntegral . port $ conf)
           release = close
