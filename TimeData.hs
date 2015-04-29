@@ -11,6 +11,7 @@ module TimeData ( User (..)
                 , retrieveAllRecordsForUser
                 , getUserByName
                 , getUserByNameUnsafe
+                , reference
                 , TimeData.insert
                 , TimeData.save
                 ) where

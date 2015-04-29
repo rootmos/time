@@ -42,7 +42,10 @@ parseCmdLine input = do
             <> header "time - a program for managing time accounts" )
         parserOptions = ParserPrefs "foo" False False True 80
 
-delegate _ _ (AddOptions _) = putStrLn "adding stuff"
+delegate con user (AddOptions amount) = do
+    time <- getCurrentTime
+    record <- insert con (Add (reference user) time (realToFrac . secondsToDiffTime $ fromIntegral amount))
+    putStrLn . show $ record
 delegate _ _ (ShowOptions _ _) = putStrLn "showing stuff"
 
 data CommandOptions = AddOptions { amount :: Int }
