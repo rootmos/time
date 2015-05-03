@@ -3,9 +3,11 @@
 
 import Data.Time
 import Data.Time.LocalTime
+import Data.Time.Calendar.WeekDate
 import Data.Time.Format
 import System.Locale
 import Control.Exception
+import Control.Monad
 
 import System.Console.Readline
 import Options.Applicative
@@ -47,10 +49,30 @@ delegate con user (AddOptions amount) = do
     time <- getCurrentTime
     record <- insert con (Add (reference user) time (realToFrac . secondsToDiffTime $ fromIntegral amount))
     putStrLn . show $ record
-delegate _ _ (ShowOptions _ _) = putStrLn "showing stuff"
+delegate con user (ShowOptions maybeAfter maybeBefore) = do
+    after <- case maybeAfter of
+               Just x -> do
+                   parsed <- niceParseTime x
+                   case parsed of
+                     Just y -> return y
+                     Nothing -> error $ "Unable to parse --after=" ++ x
+               Nothing -> startOfWeek
+    before <- case maybeBefore of
+               Just x -> do
+                   parsed <- niceParseTime x
+                   case parsed of
+                     Just y -> return y
+                     Nothing -> error $ "Unable to parse --before=" ++ x
+               Nothing -> getCurrentTime
+    records <- retrieveRecordsForUser con user after before
+    putStrLn . show $ records
+      where
+          startOfWeek = liftM (toWeekDate . utctDay) getCurrentTime >>=
+              \(year, week, _) -> return $ UTCTime (fromWeekDate year week 0) (secondsToDiffTime 0)
+
 
 data CommandOptions = AddOptions { amount :: Int }
-                    | ShowOptions { after :: Maybe Int, before :: Maybe Int }
+                    | ShowOptions { after :: Maybe String, before :: Maybe String }
                     deriving Show
 
 addCommandOptions :: Parser CommandOptions
@@ -58,12 +80,12 @@ addCommandOptions = AddOptions <$> argument auto (metavar "AMOUNT")
 
 showCommandOptions :: Parser CommandOptions
 showCommandOptions = ShowOptions
-    <$> optional ( option auto
+    <$> optional ( strOption 
                  ( long "after"
-                 <> short 'a'
-                 <> metavar "AFTER"
-                 ) )
-    <*> optional ( option auto
+                  <> short 'a'
+                  <> metavar "AFTER"
+                  ) )
+    <*> optional ( strOption
                  ( long "before"
                  <> short 'b'
                  <> metavar "BEFORE"
