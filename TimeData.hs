@@ -2,6 +2,7 @@
 {-# LANGUAGE ExtendedDefaultRules #-}
 module TimeData ( User (..)
                 , TimeRecord (..)
+                , partitionRecordsByDay
                 , sumTimeRecords
                 , connect
                 , close
@@ -38,9 +39,11 @@ import Data.Monoid ( Monoid
 import Data.Time ( UTCTime
                  , NominalDiffTime
                  , diffUTCTime
+                 , utctDay
                  )
 import Control.Applicative ( (<$>) )
 import Data.Maybe (catMaybes, listToMaybe, fromJust)
+import Data.List (groupBy)
 import Control.Monad ( liftM )
 
 import FixedPointData
@@ -95,9 +98,12 @@ getWhen (Set _ x _) = x
 getWhen (Add _ x _) = x
 getWhen (Between _ x _) = x
 
+partitionRecordsByDay :: [TimeRecord] -> [[TimeRecord]]
+partitionRecordsByDay = groupBy (\a b -> (utctDay .getWhen $ a) == (utctDay . getWhen $ b))
+
 sumTimeRecords :: [TimeRecord] -> Amount
 sumTimeRecords = getData . mconcat . map getFixedPointData
-    where
+  where
         getFixedPointData (Set _ _ x) = Fixed x
         getFixedPointData x = Data (getValue x)
 
