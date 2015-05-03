@@ -15,6 +15,7 @@ import TimeData
 import TimeConfiguration
 import Shlex
 import Ask
+import ParseTime
 
 exitCmds = ["quit", "exit"]
 
