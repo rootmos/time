@@ -18,6 +18,7 @@ import TimeConfiguration
 import Shlex
 import Ask
 import ParseTime
+import ParseDurations
 
 exitCmds = ["quit", "exit"]
 
@@ -53,7 +54,8 @@ delegate con user opt = do
 
 execute con user (AddOptions amount) = do
     time <- getCurrentTime
-    record <- insert con (Add (reference user) time (realToFrac . secondsToDiffTime $ fromIntegral amount))
+    let seconds = realToFrac . secondsToDiffTime $ parseDurationsUnsafe amount
+    record <- insert con (Add (reference user) time seconds)
     putStrLn . show $ record
 execute con user (ShowOptions maybeAfter maybeBefore) = do
     after <- case maybeAfter of
@@ -77,12 +79,12 @@ execute con user (ShowOptions maybeAfter maybeBefore) = do
               \(year, week, _) -> return $ UTCTime (fromWeekDate year week 0) (secondsToDiffTime 0)
 
 
-data CommandOptions = AddOptions { amount :: Int }
+data CommandOptions = AddOptions { amount :: String }
                     | ShowOptions { after :: Maybe String, before :: Maybe String }
                     deriving Show
 
 addCommandOptions :: Parser CommandOptions
-addCommandOptions = AddOptions <$> argument auto (metavar "AMOUNT")
+addCommandOptions = AddOptions <$> strArgument (metavar "AMOUNT")
 
 showCommandOptions :: Parser CommandOptions
 showCommandOptions = ShowOptions
