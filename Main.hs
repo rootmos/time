@@ -45,11 +45,17 @@ parseCmdLine input = do
             <> header "time - a program for managing time accounts" )
         parserOptions = ParserPrefs "foo" False False True 80
 
-delegate con user (AddOptions amount) = do
+delegate con user opt = do
+    result <- try (execute con user opt) :: IO (Either SomeException ())
+    case result of
+      Left e -> print e
+      Right _ -> return ()
+
+execute con user (AddOptions amount) = do
     time <- getCurrentTime
     record <- insert con (Add (reference user) time (realToFrac . secondsToDiffTime $ fromIntegral amount))
     putStrLn . show $ record
-delegate con user (ShowOptions maybeAfter maybeBefore) = do
+execute con user (ShowOptions maybeAfter maybeBefore) = do
     after <- case maybeAfter of
                Just x -> do
                    parsed <- niceParseTime x
