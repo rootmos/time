@@ -2,6 +2,7 @@
 {-# LANGUAGE ExtendedDefaultRules #-}
 module TimeData ( User (..)
                 , TimeRecord (..)
+                , get, refID -- Re-exported from Serialize
                 , partitionRecordsByDay
                 , sumTimeRecords
                 , connect
