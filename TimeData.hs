@@ -4,6 +4,7 @@ module TimeData ( User (..)
                 , TimeRecord (..)
                 , get, refID -- Re-exported from Serialize
                 , partitionRecordsByDay
+                , sortRecordsByDay
                 , sumTimeRecords
                 , connect
                 , close
@@ -41,6 +42,7 @@ import Data.Time ( UTCTime
                  , NominalDiffTime
                  , diffUTCTime
                  , utctDay
+                 , Day
                  )
 import Control.Applicative ( (<$>) )
 import Data.Maybe (catMaybes, listToMaybe, fromJust)
@@ -101,6 +103,12 @@ getWhen (Between _ x _) = x
 
 partitionRecordsByDay :: [TimeRecord] -> [[TimeRecord]]
 partitionRecordsByDay = groupBy (\a b -> (utctDay .getWhen $ a) == (utctDay . getWhen $ b))
+
+sortRecordsByDay :: [TimeRecord] -> [(Day, [TimeRecord])]
+sortRecordsByDay xs = foldr folder [] (partitionRecordsByDay xs)
+  where
+      folder [] list = list
+      folder rs@(r:_) list = (utctDay . getWhen $ r, rs) : list
 
 sumTimeRecords :: [TimeRecord] -> Amount
 sumTimeRecords = getData . mconcat . map getFixedPointData

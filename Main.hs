@@ -74,10 +74,13 @@ execute con user (ShowOptions maybeAfter maybeBefore) = do
                Nothing -> getCurrentTime
     records <- retrieveRecordsForUser con user after before
     putStrLn . show $ map sumTimeRecords (partitionRecordsByDay (map get records))
+    showRecords (map get records)
       where
           startOfWeek = liftM (toWeekDate . utctDay) getCurrentTime >>=
               \(year, week, _) -> return $ UTCTime (fromWeekDate year week 0) (secondsToDiffTime 0)
 
+showRecords :: [TimeRecord] -> IO ()
+showRecords xs = putStrLn . show $ sortRecordsByDay xs
 
 data CommandOptions = AddOptions { amount :: String }
                     | ShowOptions { after :: Maybe String, before :: Maybe String }
