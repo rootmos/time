@@ -5,12 +5,12 @@ import Data.Time
 import Data.Time.LocalTime
 import Data.Time.Calendar.WeekDate
 import Data.Time.Format
-import System.Locale
 import Control.Exception
 import Control.Monad
 
 import System.Console.Readline
 import Options.Applicative
+import Text.Printf
 
 -- Our stuff
 import TimeData
@@ -19,6 +19,7 @@ import Shlex
 import Ask
 import ParseTime
 import ParseDurations
+import Holidays
 
 exitCmds = ["quit", "exit"]
 
@@ -73,14 +74,24 @@ execute con user (ShowOptions maybeAfter maybeBefore) = do
                      Nothing -> error $ "Unable to parse --before=" ++ x
                Nothing -> getCurrentTime
     records <- retrieveRecordsForUser con user after before
-    putStrLn . show $ map sumTimeRecords (partitionRecordsByDay (map get records))
     showRecords (map get records)
       where
           startOfWeek = liftM (toWeekDate . utctDay) getCurrentTime >>=
               \(year, week, _) -> return $ UTCTime (fromWeekDate year week 0) (secondsToDiffTime 0)
 
 showRecords :: [TimeRecord] -> IO ()
-showRecords xs = putStrLn . show $ sortRecordsByDay xs
+showRecords xs = do
+    let sorted = sortRecordsByDay xs
+    let keys = map fst sorted
+    let days = [minimum keys..maximum keys]
+    forM_ days (\day -> showDay day (maybe [] id $ lookup day sorted))
+
+showDay :: Day -> [TimeRecord] -> IO ()
+showDay day rs =
+    printf "%s %s %s\n"
+        (formatTime defaultTimeLocale "%F" $ day)
+        (show . sumTimeRecords $ rs)
+        (describe . getContext $ day)
 
 data CommandOptions = AddOptions { amount :: String }
                     | ShowOptions { after :: Maybe String, before :: Maybe String }
