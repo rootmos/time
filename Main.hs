@@ -53,8 +53,14 @@ delegate con user opt = do
       Left e -> print e
       Right _ -> return ()
 
-execute con user (AddOptions amount) = do
-    time <- getCurrentTime
+execute con user (AddOptions amount maybeOn) = do
+    time <- case maybeOn of
+            Just x -> do
+                parsed <- niceParseTime x
+                case parsed of
+                  Just y -> return y
+                  Nothing -> error $ "Unable to parse --after=" ++ x
+            Nothing -> getCurrentTime
     let seconds = realToFrac . secondsToDiffTime $ parseDurationsUnsafe amount
     record <- insert con (Add (reference user) time seconds)
     putStrLn . show $ record
@@ -93,12 +99,18 @@ showDay day rs =
         (show . sumTimeRecords $ rs)
         (describe . getContext $ day)
 
-data CommandOptions = AddOptions { amount :: String }
+data CommandOptions = AddOptions { amount :: String, when :: Maybe String}
                     | ShowOptions { after :: Maybe String, before :: Maybe String }
                     deriving Show
 
 addCommandOptions :: Parser CommandOptions
-addCommandOptions = AddOptions <$> strArgument (metavar "AMOUNT")
+addCommandOptions = AddOptions
+    <$> strArgument (metavar "AMOUNT")
+    <*> optional ( strOption
+                 ( long "on"
+                 <> short 'o'
+                 <> metavar "ON"
+                 ) )
 
 showCommandOptions :: Parser CommandOptions
 showCommandOptions = ShowOptions
