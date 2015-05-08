@@ -2,3 +2,8 @@ sources = Main.hs Serializable.hs FixedPointData.hs TimeData.hs TimeConfiguratio
 
 time: $(sources)
 	ghc -o time -O $(sources)
+
+.PHONY: deps
+deps:
+	cat dependencies | xargs cabal install
+
