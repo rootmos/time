@@ -8,6 +8,7 @@ import Data.Time.Format
 import Control.Exception
 import Control.Monad
 
+import System.IO
 import System.Console.Readline
 import Options.Applicative
 import Text.Printf
@@ -92,7 +93,6 @@ execute con user (WeekOptions maybeWhen) = do
                         now <- getCurrentTime
                         case parseDurations input of
                           Right x -> do
-                              putStrLn $ "Parsed " ++ (show x)
                               return $ addUTCTime (fromIntegral x :: NominalDiffTime) now
                           Left _ -> error $ "Unable to parse " ++ input
     showRecords con user (startOfWeek time) (endOfWeek time)
@@ -117,14 +117,19 @@ showRecords con user after before = do
     records <- liftM (map get) $ retrieveRecordsForUser con user after before
     let sorted = sortRecordsByDay records
     let days = [(utctDay after)..(utctDay before)]
-    forM_ days (\day -> showDay day (maybe [] id $ lookup day sorted))
+    forM_ days (\day -> showDay (targetHours . get $ user) day (maybe [] id $ lookup day sorted))
 
-showDay :: Day -> [TimeRecord] -> IO ()
-showDay day rs =
-    printf "%s %.2fh %s\n"
+showDay targetHours day rs =
+    printf "%s %.2fh %s(%s,%.2fh)\n"
         (formatTime defaultTimeLocale "%F" $ day)
         (getHours . sumTimeRecords $ rs)
         (describe . getContext $ day)
+        (show . getType . getContext $ day)
+        (convertTargetHours . getType . getContext $ day)
+          where
+              convertTargetHours Workday = targetHours
+              convertTargetHours Halfday = targetHours
+              convertTargetHours Off = 0.0
 
 data CommandOptions = AddOptions { amount :: String, when :: Maybe String}
                     | ShowOptions { after :: Maybe String, before :: Maybe String }
@@ -176,7 +181,11 @@ perhapsAddUser con username = do
     if answer then addUser con username
               else error $ "User not found: " ++ username
 
-addUser con username = insert con (User username 40.0)
+addUser con username = do
+    putStr "Target hours? "
+    hFlush stdout
+    targetHours <- liftM read getLine :: IO Float
+    insert con (User username targetHours)
 
 main :: IO ()
 main = do

@@ -1,6 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ExtendedDefaultRules #-}
 module TimeData ( User (..)
+                , name, targetHours
                 , TimeRecord (..)
                 , get, refID -- Re-exported from Serialize
                 , partitionRecordsByDay
