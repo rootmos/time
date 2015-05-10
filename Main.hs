@@ -103,7 +103,7 @@ startOfDay time =
 
 endOfDay time =
     let (year, month, day) = toGregorian . utctDay $ time in
-    UTCTime (fromGregorian year month (day+1)) (secondsToDiffTime (-1))
+    addUTCTime ((-1) :: NominalDiffTime) $ UTCTime (fromGregorian year month (day+1)) (secondsToDiffTime 0)
 
 startOfWeek time =
     let (year, week, _) = toWeekDate . utctDay $ time in
@@ -111,13 +111,12 @@ startOfWeek time =
 
 endOfWeek time =
     let (year, week, _) = toWeekDate . utctDay $ time in
-    UTCTime (fromWeekDate year (week+1) 0) (secondsToDiffTime (-1))
+    addUTCTime ((-1) :: NominalDiffTime) $ UTCTime (fromWeekDate year (week+1) 0) (secondsToDiffTime 0)
 
 showRecords con user after before = do
     records <- liftM (map get) $ retrieveRecordsForUser con user after before
     let sorted = sortRecordsByDay records
-    let keys = map fst sorted
-    let days = [minimum keys..maximum keys]
+    let days = [(utctDay after)..(utctDay before)]
     forM_ days (\day -> showDay day (maybe [] id $ lookup day sorted))
 
 showDay :: Day -> [TimeRecord] -> IO ()
