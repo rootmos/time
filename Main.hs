@@ -65,42 +65,71 @@ execute con user (AddOptions amount maybeOn) = do
     record <- insert con (Add (reference user) time seconds)
     putStrLn . show $ record
 execute con user (ShowOptions maybeAfter maybeBefore) = do
+    now <- getCurrentTime
     after <- case maybeAfter of
                Just x -> do
                    parsed <- niceParseTime x
                    case parsed of
                      Just y -> return y
                      Nothing -> error $ "Unable to parse --after=" ++ x
-               Nothing -> startOfWeek
+               Nothing -> return $ startOfDay now
     before <- case maybeBefore of
                Just x -> do
                    parsed <- niceParseTime x
                    case parsed of
                      Just y -> return y
                      Nothing -> error $ "Unable to parse --before=" ++ x
-               Nothing -> getCurrentTime
-    records <- retrieveRecordsForUser con user after before
-    showRecords (map get records)
-      where
-          startOfWeek = liftM (toWeekDate . utctDay) getCurrentTime >>=
-              \(year, week, _) -> return $ UTCTime (fromWeekDate year week 0) (secondsToDiffTime 0)
+               Nothing -> return $ endOfDay now
+    showRecords con user after before
+execute con user (WeekOptions maybeWhen) = do
+    time <- case maybeWhen of
+              Nothing -> getCurrentTime
+              Just input -> do
+                  maybeTime <- niceParseTime input
+                  case maybeTime of
+                    Just x -> return x
+                    Nothing -> do
+                        now <- getCurrentTime
+                        case parseDurations input of
+                          Right x -> do
+                              putStrLn $ "Parsed " ++ (show x)
+                              return $ addUTCTime (fromIntegral x :: NominalDiffTime) now
+                          Left _ -> error $ "Unable to parse " ++ input
+    showRecords con user (startOfWeek time) (endOfWeek time)
 
-showRecords :: [TimeRecord] -> IO ()
-showRecords xs = do
-    let sorted = sortRecordsByDay xs
+startOfDay time =
+    let (year, month, day) = toGregorian . utctDay $ time in
+    UTCTime (fromGregorian year month day) (secondsToDiffTime 0)
+
+endOfDay time =
+    let (year, month, day) = toGregorian . utctDay $ time in
+    UTCTime (fromGregorian year month (day+1)) (secondsToDiffTime (-1))
+
+startOfWeek time =
+    let (year, week, _) = toWeekDate . utctDay $ time in
+    UTCTime (fromWeekDate year week 0) (secondsToDiffTime 0)
+
+endOfWeek time =
+    let (year, week, _) = toWeekDate . utctDay $ time in
+    UTCTime (fromWeekDate year (week+1) 0) (secondsToDiffTime (-1))
+
+showRecords con user after before = do
+    records <- liftM (map get) $ retrieveRecordsForUser con user after before
+    let sorted = sortRecordsByDay records
     let keys = map fst sorted
     let days = [minimum keys..maximum keys]
     forM_ days (\day -> showDay day (maybe [] id $ lookup day sorted))
 
 showDay :: Day -> [TimeRecord] -> IO ()
 showDay day rs =
-    printf "%s %s %s\n"
+    printf "%s %.2fh %s\n"
         (formatTime defaultTimeLocale "%F" $ day)
-        (show . sumTimeRecords $ rs)
+        (getHours . sumTimeRecords $ rs)
         (describe . getContext $ day)
 
 data CommandOptions = AddOptions { amount :: String, when :: Maybe String}
                     | ShowOptions { after :: Maybe String, before :: Maybe String }
+                    | WeekOptions { when :: Maybe String }
                     deriving Show
 
 addCommandOptions :: Parser CommandOptions
@@ -125,11 +154,16 @@ showCommandOptions = ShowOptions
                  <> metavar "BEFORE"
                  ) )
 
+weekCommandOptions :: Parser CommandOptions
+weekCommandOptions = WeekOptions <$> optional ( strArgument (metavar "WHEN") ) 
+
 commandParser = subparser
     ( command "add" ( info (helper <*> addCommandOptions)
                     ( progDesc "Add a time record" ) )
    <> command "show" ( info (helper <*> showCommandOptions)
-                     ( progDesc "Show the time records" ) )
+                     ( progDesc "Show the time records between dates" ) )
+   <> command "week" ( info (helper <*> weekCommandOptions)
+                     ( progDesc "Show the time records for a week" ) )
     )
 
 obtainUser con username = do

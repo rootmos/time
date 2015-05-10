@@ -6,6 +6,7 @@ module TimeData ( User (..)
                 , partitionRecordsByDay
                 , sortRecordsByDay
                 , sumTimeRecords
+                , getHours
                 , connect
                 , close
                 , Connection
@@ -81,6 +82,9 @@ instance Referable User where
 type Timestamp = UTCTime
 type When = Timestamp
 type Amount = NominalDiffTime
+
+getHours :: Amount -> Float
+getHours = fromRational . (/ 3600) . toRational
 
 instance Monoid NominalDiffTime where
     mempty = 0 :: NominalDiffTime
