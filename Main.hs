@@ -21,6 +21,7 @@ import Ask
 import ParseTime
 import ParseDurations
 import Holidays
+import Stopwatch
 
 exitCmds = ["quit", "exit"]
 
@@ -54,7 +55,7 @@ delegate con user opt = do
       Left e -> print e
       Right _ -> return ()
 
-execute con user (AddOptions amount maybeOn) = do
+execute con user (AddOptions maybeAmount maybeOn) = do
     time <- case maybeOn of
             Just x -> do
                 parsed <- niceParseTime x
@@ -62,7 +63,10 @@ execute con user (AddOptions amount maybeOn) = do
                   Just y -> return y
                   Nothing -> error $ "Unable to parse --after=" ++ x
             Nothing -> getCurrentTime
-    let seconds = realToFrac . secondsToDiffTime $ parseDurationsUnsafe amount
+    seconds <- case maybeAmount of
+                Just x -> return $
+                  (realToFrac . secondsToDiffTime . parseDurationsUnsafe) x
+                Nothing -> liftM realToFrac runStopwatch
     record <- insert con (Add (reference user) time seconds)
     putStrLn . show $ record
 execute con user (ShowOptions maybeAfter maybeBefore) = do
@@ -131,14 +135,14 @@ showDay targetHours day rs =
               convertTargetHours Halfday = targetHours
               convertTargetHours Off = 0.0
 
-data CommandOptions = AddOptions { amount :: String, when :: Maybe String}
+data CommandOptions = AddOptions { amount :: Maybe String, when :: Maybe String}
                     | ShowOptions { after :: Maybe String, before :: Maybe String }
                     | WeekOptions { when :: Maybe String }
                     deriving Show
 
 addCommandOptions :: Parser CommandOptions
 addCommandOptions = AddOptions
-    <$> strArgument (metavar "AMOUNT")
+    <$> optional (strArgument (metavar "AMOUNT"))
     <*> optional ( strOption
                  ( long "on"
                  <> short 'o'
