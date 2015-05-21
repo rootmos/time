@@ -5,6 +5,7 @@ import Data.Time.Format
 import Text.Printf
 
 import Control.Monad
+import Control.Exception
 import Control.Concurrent
 import System.Timeout as T
 import System.Console.ANSI
@@ -88,7 +89,8 @@ clockStatus :: State -> NominalDiffTime -> IO ()
 clockStatus state rawAmount = do
     setCursorColumn 0
     clearLine
-    putStr $ "Clock " ++ stateString state ++ ": " ++ amountString rawAmount
+    putStr $ "Clock " ++ stateString state ++ ": " ++ amountString rawAmount ++ " "
+    animation state
     hFlush stdout
   where
       stateString Running = "running"
@@ -102,6 +104,15 @@ clockStatus state rawAmount = do
 command Running = "Press p to pause, q to quit."
 command Paused = "Press p to resume, q to quit."
 command Stopped = "Done."
+
+animation state = do
+    s <- liftM utctDayTime getCurrentTime
+    let i = truncate s `mod` length (animationStrings state)
+    putStr $ (animationStrings state) !! i
+      where
+          animationStrings state
+            | state == Running = ["|", "/", "-", "\\"]
+            | otherwise = [".", "..", "...", "...."]
 
 nominalDiffTimeToFloat :: NominalDiffTime -> Float
 nominalDiffTimeToFloat = fromRational . toRational
