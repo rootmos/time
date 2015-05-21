@@ -1,44 +1,59 @@
 module Stopwatch (runStopwatch) where
 
 import Data.Time
+import Data.Time.Format
 import Text.Printf
 
+import Control.Monad
 import Control.Concurrent
 import System.Timeout as T
 import System.Console.ANSI
 import System.IO
 
 data State = Running | Paused | Stopped
-  deriving Show
+  deriving (Show, Eq)
 
 input :: MVar State -> MVar () -> IO ()
-input channel window = inputLoop Running channel window
+input channel mStdout = do
+    showHeader Running mStdout
+    inputLoop Running channel mStdout
 
 inputLoop :: State -> MVar State -> MVar () -> IO ()
 inputLoop Running channel mStdout = do
     char <- getChar
-    withMVar mStdout (\_-> putStrLn "")
     case char of
       'p' -> do
-          putMVar channel Paused
-          inputLoop Paused channel mStdout
+          showHeader Paused mStdout
+          setNewState Paused channel mStdout
       'q' -> do
-          putMVar channel Stopped
-          inputLoop Stopped channel mStdout
-      _ -> inputLoop Running channel mStdout
+          showHeader Stopped mStdout
+          setNewState Stopped channel mStdout
+      _ -> setNewState Running channel mStdout
 inputLoop Paused channel mStdout = do
     char <- getChar
-    withMVar mStdout (\_-> putStrLn "")
     case char of
       'p' -> do
-          putMVar channel Running
-          inputLoop Running channel mStdout
+          showHeader Running mStdout
+          setNewState Running channel mStdout
       'q' -> do
-          putMVar channel Stopped
-          inputLoop Stopped channel mStdout
-      _ -> inputLoop Paused channel mStdout
+          showHeader Stopped mStdout
+          setNewState Stopped channel mStdout
+      _ -> setNewState Paused channel mStdout
 inputLoop Stopped _ _ = return ()
 
+setNewState state channel mStdout = do
+      putMVar channel state
+      inputLoop state channel mStdout
+
+showHeader state mStdout = do
+    withMVar mStdout outputter
+      where
+          outputter _ =  do
+              putStrLn ""
+              putStrLn ""
+              now <- liftM (formatTime defaultTimeLocale "%T %Z") getCurrentTime
+              putStrLn $ (show state) ++ " @ " ++ now
+              putStrLn $ command state
 
 output :: MVar State -> MVar () -> IO (NominalDiffTime)
 output channel window = outputLoop channel Running (fromIntegral (0 :: Int)) window
@@ -73,8 +88,7 @@ clockStatus :: State -> NominalDiffTime -> IO ()
 clockStatus state rawAmount = do
     setCursorColumn 0
     clearLine
-    putStr $ "Clock " ++ stateString state ++ ": " ++ amountString rawAmount ++ ". "
-    putStr $ command state
+    putStr $ "Clock " ++ stateString state ++ ": " ++ amountString rawAmount
     hFlush stdout
   where
       stateString Running = "running"
@@ -84,9 +98,10 @@ clockStatus state rawAmount = do
         | amount < 60 = show (truncateNominalDiffTime amount) ++ "s"
         | amount < 3600 = show (truncateNominalDiffTime $ amount / 60) ++ "m"
         | otherwise = printf "%.2fh" (nominalDiffTimeToFloat $ amount / 3600)
-      command Running = "Press p to pause, q to quit."
-      command Paused = "Press p to resume, q to quit."
-      command Stopped = ""
+
+command Running = "Press p to pause, q to quit."
+command Paused = "Press p to resume, q to quit."
+command Stopped = "Done."
 
 nominalDiffTimeToFloat :: NominalDiffTime -> Float
 nominalDiffTimeToFloat = fromRational . toRational
