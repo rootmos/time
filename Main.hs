@@ -123,16 +123,21 @@ showRecords con user after before = do
     let days = [(utctDay after)..(utctDay before)]
     forM_ days (\day -> showDay (targetHours . get $ user) day (maybe [] id $ lookup day sorted))
 
-showDay targetHours day rs =
-    printf "%s %.2fh %s(%s,%.2fh)\n"
+showDay rawTargetHours day rs =
+    printf "%s %.2fh %s(%s,%.2fh) %.2fh\n"
         (formatTime defaultTimeLocale "%F" $ day)
-        (getHours . sumTimeRecords $ rs)
+        summedHours
         (describe . getContext $ day)
         (show . getType . getContext $ day)
-        (convertTargetHours . getType . getContext $ day)
+        targetHours
+        difference
           where
-              convertTargetHours Workday = targetHours
-              convertTargetHours Halfday = targetHours
+              targetHours = convertTargetHours . getType . getContext $ day
+              summedHours = getHours . sumTimeRecords $ rs
+              difference = summedHours - targetHours
+
+              convertTargetHours Workday = rawTargetHours
+              convertTargetHours Halfday = rawTargetHours
               convertTargetHours Off = 0.0
 
 data CommandOptions = AddOptions { amount :: Maybe String, when :: Maybe String}
