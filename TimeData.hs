@@ -8,6 +8,7 @@ module TimeData ( User (..)
                 , sortRecordsByDay
                 , sumTimeRecords
                 , getHours
+                , getWhen
                 , connect
                 , close
                 , Connection

@@ -121,24 +121,40 @@ showRecords con user after before = do
     records <- liftM (map get) $ retrieveRecordsForUser con user after before
     let sorted = sortRecordsByDay records
     let days = [(utctDay after)..(utctDay before)]
-    forM_ days (\day -> showDay (targetHours . get $ user) day (maybe [] id $ lookup day sorted))
+    let target = targetHours . get $ user
+    forM_ days (\day -> showDay target day (maybe [] id $ lookup day sorted))
+
+    total <- compareRecordsWithTargetHours records target :: IO Float
+    printf "Cumulative sum: %.2fh (compared with target hours, including today)\n" total
+    
+
+compareRecordsWithTargetHours records hours = do
+    now <- getCurrentTime
+    let sorted = sortRecordsByDay $ filter (\r -> (getWhen r) <= now) records
+    let days = [(fst . head $ sorted)..(utctDay now)]
+    return . sum $ map (mapper sorted) days
+      where
+          mapper sorted day = maybe (diff day []) (diff day) $ lookup day sorted
+          target d = convertTargetHours hours . getType . getContext $ d
+          sumRecs rs = getHours . sumTimeRecords $ rs
+          diff d rs = sumRecs rs - target d
 
 showDay rawTargetHours day rs =
-    printf "%s %.2fh %s(%s,%.2fh) %.2fh\n"
+    printf "%s %.2fh(%.2fh) %s(%s,%.2fh)\n"
         (formatTime defaultTimeLocale "%F" $ day)
         summedHours
+        difference
         (describe . getContext $ day)
         (show . getType . getContext $ day)
         targetHours
-        difference
           where
-              targetHours = convertTargetHours . getType . getContext $ day
+              targetHours = (convertTargetHours rawTargetHours) . getType . getContext $ day
               summedHours = getHours . sumTimeRecords $ rs
               difference = summedHours - targetHours
 
-              convertTargetHours Workday = rawTargetHours
-              convertTargetHours Halfday = rawTargetHours
-              convertTargetHours Off = 0.0
+convertTargetHours hours Workday = hours
+convertTargetHours hours Halfday = hours
+convertTargetHours _ Off = 0.0
 
 data CommandOptions = AddOptions { amount :: Maybe String, when :: Maybe String}
                     | ShowOptions { after :: Maybe String, before :: Maybe String }
