@@ -5,3 +5,4 @@ parsec
 optparse-applicative
 readline
 ConfigFile
+template-haskell
